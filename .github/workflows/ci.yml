@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        js-runtime: [node, bun]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - run: bun install --frozen-lockfile
+      - run: bun run check
+      - run: bun run build
+      - run: bun run --cwd examples/demo-tests playwright install --with-deps chromium
+      - run: ${{ matrix.js-runtime }} packages/cli/dist/index.js --version
+      - name: Run the demo suite
+        env:
+          DEMO_API_TOKEN: ci-leak-probe-4f9a1c
+        run: ${{ matrix.js-runtime }} packages/cli/dist/index.js run --tags @demo,@runtime --env DEMO_EXPECT_JS_RUNTIME=${{ matrix.js-runtime }} --runtime native --project-root examples/demo-tests --wait
+      - name: Verify results
+        run: |
+          node --input-type=module -e "
+            import assert from 'node:assert/strict';
+            import { readFileSync, readdirSync } from 'node:fs';
+            const store = 'examples/demo-tests/.test-container';
+            const id = readFileSync(store + '/latest', 'utf8').trim();
+            const dir = store + '/runs/' + id;
+            const run = JSON.parse(readFileSync(dir + '/run.json', 'utf8'));
+            assert.equal(run.status, 'done');
+            assert.equal(run.counters.selected, 8);
+            assert.equal(run.counters.passed, 3);
+            assert.equal(run.counters.failed, 5);
+            assert.equal(run.counters.groups, 6);
+            assert.equal(run.counters.skipped, 0);
+            assert.equal(Boolean(run.versions.bun), '${{ matrix.js-runtime }}' === 'bun');
+            assert.deepEqual(run.request.envNames, ['DEMO_API_TOKEN', 'DEMO_EXPECT_JS_RUNTIME']);
+            const walk = (folder) => readdirSync(folder, { withFileTypes: true }).flatMap((entry) => entry.isDirectory() ? walk(folder + '/' + entry.name) : [folder + '/' + entry.name]);
+            const probe = Buffer.from('ci-leak-probe-4f9a1c');
+            for (const file of walk(dir)) assert.equal(readFileSync(file).includes(probe), false, file + ' contains the passthrough secret');
+          "

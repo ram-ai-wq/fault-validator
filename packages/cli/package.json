@@ -1,0 +1,36 @@
+{
+  "name": "@scope/test-container",
+  "version": "0.1.0",
+  "description": "Local, deterministic triage of Playwright failures with a CLI and an MCP server.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ram-ai-wq/fault-validator.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/ram-ai-wq/fault-validator/issues"
+  },
+  "homepage": "https://github.com/ram-ai-wq/fault-validator#readme",
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "bin": {
+    "test-container": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.5",
+    "yaml": "^2.8.1",
+    "zod": "^4.1.5"
+  },
+  "devDependencies": {
+    "@scope/core": "workspace:*"
+  }
+}

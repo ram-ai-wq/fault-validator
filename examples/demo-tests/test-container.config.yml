@@ -1,0 +1,9 @@
+version: 1
+runtime: native
+env:
+  passthrough: [DEMO_API_TOKEN]
+playwright:
+  workers: 1
+rerun:
+  attempts: 2
+  backoffSeconds: [0, 0]
